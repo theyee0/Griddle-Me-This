@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
 
 # https://github.com/BarakOshri/ConvChess/blob/master/papers/ConvChess.pdf
 
