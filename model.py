@@ -5,6 +5,8 @@ from torch.utils.data import DataLoader
 # https://github.com/BarakOshri/ConvChess/blob/master/papers/ConvChess.pdf
 
 class StackedConvolve(nn.Module):
+    """Neural net module combining 2 convolutional layers with fully connected layers"""
+
     def __init__(self):
         super().__init__()
         self.flatten = nn.Flatten()
@@ -16,11 +18,12 @@ class StackedConvolve(nn.Module):
             nn.Conv2d(1, 1, 3, padding=1),
             nn.Linear(16*16, 8*8),
             nn.ReLU(),
+            self.flatten,
             nn.Linear(8*8, 8*8),
-            nn.ReLU()
+            nn.ReLU(),
+            nn.SoftMax()
         )
 
-        return
 
     def forward(self, x):
         return self.layer_stack(x)
