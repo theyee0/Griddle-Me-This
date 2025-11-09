@@ -4,11 +4,14 @@ from torch.utils.data import DataLoader
 import chess
 
 def predict_move(board, models_from, models_to):
+    """Given a board state, use neural network models to predict the best move"""
+
     chess_pieces = (chess.PAWN, chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN)
 
     best_move = None
     best_probability = -1
 
+    # Set all models to evaluation mode
     map(lambda x: x.eval(), models_from)
     map(lambda x: x.eval(), models_to)
 
@@ -34,7 +37,7 @@ def predict_move(board, models_from, models_to):
 
                 # Compute probability that a given move will end up here
                 combined_probability = probability * model_to[piece](to_square)
-                
+
                 if best_probability < combined_probability
                 best_probability = combined_probability
                 best_move = move
@@ -43,6 +46,8 @@ def predict_move(board, models_from, models_to):
 
 
 def read_move(board):
+    """Prompt the user to enter a move until a valid move is chosen"""
+
     move = None
 
     # Prompt the user for moves until we have a valid one to make
@@ -63,6 +68,8 @@ def read_move(board):
 
 
 def game_loop(board, models):
+    """Create infinite game loop where the user enters a move and the network responds"""
+
     while True:
         player_move = read_move(board)
         print(f"Your move was {player_move}")
@@ -75,8 +82,6 @@ def game_loop(board, models):
         board.push(computer_move)
         board.apply_mirror()
         print(board)
-
-    return
 
 
 if __name__ == "__main__":
