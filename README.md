@@ -12,6 +12,14 @@ python3 game.py
 ```
 The game will expect you to enter your moves in algebraic notation, with the starting square and the ending square. To exit, you can type Ctrl-C.
 
+## Training
+Currently, training can only be performed by giving the model a dataset containing games in .pgn format. In the REPL, you can call
+```
+>>> from train import *
+>>> train_iteratively_on_games_and_export(<pgn_file>, <epochs>)
+```
+Where `<pgn_file>` represents whichever dataset you are using and `<epochs>` is the number of iterations over that dataset you want to perform.
+
 # Design
 This model was based on the ideas proposed in the [ConvChess](https://cs231n.stanford.edu/reports/2015/pdfs/ConvChess.pdf) paper with modifications.
 
