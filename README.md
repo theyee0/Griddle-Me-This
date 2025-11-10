@@ -35,3 +35,5 @@ Right now, there are 4 layers:
 4. Convolution + Linear + Leaky Relu (acts on the one remaining channel)
 
 Then, the result is flattened and run through a softmax layer to yield probabilities.
+
+The data used for training was from [LumbrasGigaBase](https://lumbrasgigabase.com/en/), specifically a small subset of the games from 0001-1899. I used a small data set due to limited time and computing resources, but in theory the model should work (and be more accurate) given a larger dataset.
