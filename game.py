@@ -33,7 +33,7 @@ def predict_move(board, models_from, models_to):
             piece = piece.piece_type
 
             # Compute probability that the ideal move is to move the current piece
-            from_probability = probability_from[piece].data[0].data[from_square].item()
+            from_probability = probability_from[piece].data[from_square].item()
 
             moves = filter(lambda x: x.from_square == from_square, board.legal_moves)
 
@@ -42,7 +42,7 @@ def predict_move(board, models_from, models_to):
                 to_square = move.to_square
 
                 # Compute probability that a given move will end up here
-                to_probability = models_to[piece](board_tensor).data[0].data[to_square].item()
+                to_probability = models_to[piece](board_tensor).data[to_square].item()
 
                 combined_probability = from_probability * to_probability
 
@@ -77,18 +77,31 @@ def read_move(board):
 
 def game_loop(board, models_from, models_to):
     """Create infinite game loop where the user enters a move and the network responds"""
+
+    # Print initial board state
     print(board)
 
+    # Loop game until user forcibly closes, e.g. with Ctrl-C
     while True:
-        player_move = read_move(board)
-        print(f"Your move was {player_move}")
-        board.push(player_move)
-        if board.is_game_over():
-            printf("The player won a round!")
-            print(board.outcome().result())
-            board.reset()
-        print(board)
-        print()
+        try:
+            player_move = read_move(board)
+            print(f"Your move was {player_move}")
+            board.push(player_move)
+            if board.is_game_over():
+                printf("The player won a round!")
+                print(board.outcome().result())
+                board.reset()
+            print(board)
+            print()
+        except KeyboardInterrupt:
+            print()
+            print(board)
+            print("Ending game...")
+            if board.outcome() is None:
+                print("No game info to be printed")
+            else:
+                print(board.outcome())
+            break
 
         board.apply_mirror()
         computer_move = predict_move(board, models_from, models_to)

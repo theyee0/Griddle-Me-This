@@ -117,7 +117,7 @@ def train_on_games(pgn_file, models_from, models_to, epochs, device):
 
     # Iteratively train over epochs
     for epoch in range(epochs):
-        print(f"Training epoch {epoch}:")
+        print(f"Training epoch {epoch + 1}:")
         train(loader, models_from, models_to, loss_fn, optimizers_from, optimizers_to, device)
 
 
@@ -132,15 +132,116 @@ def export_models(models_from, models_to):
 
 
 def train_on_games_and_export(pgn_file, epochs):
+    """Generates board/move pairs and trains the model for a set number of epochs"""
+
     device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+    chess_pieces = (chess.PAWN, chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN, chess.KING)
+
+    # Initialize models
     models_from = {}
     models_to = {}
-
-    chess_pieces = (chess.PAWN, chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN, chess.KING)
 
     for piece in chess_pieces:
         models_from[piece] = StackedConvolve().to(device)
         models_to[piece] = StackedConvolve().to(device)
 
+    # Perform training
     train_on_games(pgn_file, models_from, models_to, epochs, device)
+    export_models(models_from, models_to)
+
+
+def train_on_game_sequence(game, models_from, models_to, loss_fn, optimizers_from, optimizers_to, epochs):
+    """Train model directly on the moves played in a game rather than stored board/move pairs"""
+
+    board = chess.Board()
+    board.reset()
+
+    # Iterate over moves and train model
+    for move in game.mainline_moves():
+        X: torch.Tensor # Game state
+        y: torch.Tensor # Expected "from" square
+        z: torch.Tensor # Expected "to" square
+
+        # Generate tensor, inverting board if necessary
+        if board.turn == chess.WHITE:
+            X = chess_to_tensor(board)
+            y = position_to_tensor(move.from_square)
+            z = position_to_tensor(move.to_square)
+        else:
+            X = chess_to_tensor(board.mirror())
+            y = position_to_tensor(chess.square_mirror(move.from_square))
+            z = position_to_tensor(chess.square_mirror(move.to_square))
+
+        piece = board.piece_at(move.from_square).piece_type
+
+        # Train model corresponding to the currently moved piece that identifies "from" square
+        pred_from = models_from[piece](X)
+        loss_from = loss_fn(pred_from, y)
+
+        loss_from.backward()
+        optimizers_from[piece].step()
+        optimizers_from[piece].zero_grad()
+
+        # Train model corresponding to the currently moved piece that identifies "to" square
+        pred_to = models_to[piece](X)
+        loss_to = loss_fn(pred_to, z)
+
+        loss_to.backward()
+        optimizers_to[piece].step()
+        optimizers_to[piece].zero_grad()
+
+        # Move to the next board state in the game
+        board.push(move)
+
+
+def train_iteratively_on_games_and_export(pgn_file, epochs):
+    """Load a .pgn file and generate a model that plays, trained on game sequence rather than board/move pairs"""
+    device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+    chess_pieces = (chess.PAWN, chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN, chess.KING)
+
+    # Initialize model values
+    models_from = {}
+    models_to = {}
+
+    for piece in chess_pieces:
+        models_from[piece] = StackedConvolve().to(device)
+        models_to[piece] = StackedConvolve().to(device)
+
+    # Set all models to training mode
+    for _, model in models_from.items():
+        model.train()
+    for _, model in models_to.items():
+        model.train()
+
+
+    # Define loss function and create list of optimizers for each model in lists
+    loss_fn = nn.CrossEntropyLoss()
+
+    # Initialize optimizers
+    optimizers_from = {}
+    optimizers_to = {}
+
+    for piece in chess_pieces:
+        optimizers_from[piece] = torch.optim.SGD(models_from[piece].parameters(), lr=1e-3)
+        optimizers_to[piece] = torch.optim.SGD(models_to[piece].parameters(), lr=1e-3);
+
+    pgn = open(pgn_file)
+
+    # Retrain over games for some number of epochs
+    for epoch in range(epochs):
+        print(f"Training epoch {epoch + 1}:")
+
+        # Go to start of pgn file
+        pgn.seek(0)
+
+        game = chess.pgn.read_game(pgn)
+
+        # Iterate as long as a game can be found in the pgn file
+        while game is not None:
+            # Start each game with a standard board layout
+            train_on_game_sequence(game, models_from, models_to, loss_fn, optimizers_from, optimizers_to, epochs)
+
+            # Attempt to read another game
+            game = chess.pgn.read_game(pgn)
+
     export_models(models_from, models_to)
