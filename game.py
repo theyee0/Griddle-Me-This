@@ -17,19 +17,23 @@ def predict_move(board, models_from, models_to):
     for _, model in models_to.items():
         model.eval()
 
+    board_tensor = chess_to_tensor(board)
+
     # Iterate over all squares to identify valid moves
     with torch.no_grad():
-        probability_from = {piece : model_from[piece](board) for piece in chess_pieces}
+        probability_from = {piece : models_from[piece](board_tensor) for piece in chess_pieces}
 
         for from_square in chess.SQUARES:
-            piece = chess.board.piece_at(i)
+            piece = board.piece_at(from_square)
 
             # Move onto the next square if the current square is empty or opposing color
-            if piece is None or piece.color == color.BLACK:
+            if piece is None or piece.color == chess.BLACK:
                 continue
 
+            piece = piece.piece_type
+
             # Compute probability that the ideal move is to move the current piece
-            probability = probability_from[from_square]
+            from_probability = probability_from[piece].data[0].data[from_square].item()
 
             moves = filter(lambda x: x.from_square == from_square, board.legal_moves)
 
@@ -38,7 +42,9 @@ def predict_move(board, models_from, models_to):
                 to_square = move.to_square
 
                 # Compute probability that a given move will end up here
-                combined_probability = probability * model_to[piece](to_square)
+                to_probability = models_to[piece](board_tensor).data[0].data[to_square].item()
+
+                combined_probability = from_probability * to_probability
 
                 if best_probability < combined_probability:
                     best_probability = combined_probability
@@ -55,8 +61,8 @@ def read_move(board):
     # Prompt the user for moves until we have a valid one to make
     while move is None:
         try:
-            move = chess.from_uci(input("Enter a move: "))
-        except InvalidMoveError:
+            move = chess.Move.from_uci(input("Enter a move: "))
+        except chess.InvalidMoveError:
             # Moves is not in valid UCI format
             print("Please format your move properly.")
             move = None
@@ -69,8 +75,9 @@ def read_move(board):
     return move
 
 
-def game_loop(board, models):
+def game_loop(board, models_from, models_to):
     """Create infinite game loop where the user enters a move and the network responds"""
+    print(board)
 
     while True:
         player_move = read_move(board)
@@ -79,7 +86,7 @@ def game_loop(board, models):
         print(board)
 
         board.apply_mirror()
-        computer_move = predict_move(board, models)
+        computer_move = predict_move(board, models_from, models_to)
         print(f"The computer played {computer_move}")
         board.push(computer_move)
         board.apply_mirror()
@@ -95,11 +102,11 @@ def load_models():
     chess_pieces = (chess.PAWN, chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN, chess.KING)
 
     for i, piece in enumerate(chess_pieces):
-        model_from[piece] = StackedConvolve.to(device)
-        model_from.load_state_dict(torch.load("model_from_{i}.pt"))
+        models_from[piece] = StackedConvolve().to(device)
+        models_from[piece].load_state_dict(torch.load(f"model_from_{i}.pt"))
 
-        model_to[piece] = StackedConvolve.to(device)
-        model_to.load_state_dict(torch.load("model_to_{i}.pt"))
+        models_to[piece] = StackedConvolve().to(device)
+        models_to[piece].load_state_dict(torch.load(f"model_to_{i}.pt"))
 
     return models_from, models_to
 
