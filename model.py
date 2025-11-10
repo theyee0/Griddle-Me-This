@@ -18,7 +18,7 @@ class StackedConvolve(nn.Module):
             nn.ReLU(),
             nn.Linear(8*8, 8*8),
             nn.ReLU(),
-            nn.Softmax()
+            nn.Softmax(dim=8*8)
         )
 
 
