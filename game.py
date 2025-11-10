@@ -83,14 +83,26 @@ def game_loop(board, models_from, models_to):
         player_move = read_move(board)
         print(f"Your move was {player_move}")
         board.push(player_move)
+        if board.is_game_over():
+            printf("The player won a round!")
+            print(board.outcome().result())
+            board.reset()
         print(board)
+        print()
 
         board.apply_mirror()
         computer_move = predict_move(board, models_from, models_to)
-        print(f"The computer played {computer_move}")
+        mirrored_move = chess.Move(chess.square_mirror(computer_move.from_square),
+                                   chess.square_mirror(computer_move.to_square))
+        print(f"The computer played {mirrored_move}")
         board.push(computer_move)
         board.apply_mirror()
+        if board.is_game_over():
+            printf("The computer won the round!")
+            print(board.outcome().result())
+            board.reset()
         print(board)
+        print()
 
 
 def load_models():
