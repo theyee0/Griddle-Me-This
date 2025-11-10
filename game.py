@@ -1,19 +1,21 @@
 import torch
-from torch import nn
-from torch.utils.data import DataLoader
+from model import *
+from utils import *
 import chess
 
 def predict_move(board, models_from, models_to):
     """Given a board state, use neural network models to predict the best move"""
 
-    chess_pieces = (chess.PAWN, chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN)
+    chess_pieces = (chess.PAWN, chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN, chess.KING)
 
     best_move = None
     best_probability = -1
 
     # Set all models to evaluation mode
-    map(lambda x: x.eval(), models_from)
-    map(lambda x: x.eval(), models_to)
+    for _, model in models_from.items():
+        model.eval()
+    for _, model in models_to.items():
+        model.eval()
 
     # Iterate over all squares to identify valid moves
     with torch.no_grad():
@@ -38,9 +40,9 @@ def predict_move(board, models_from, models_to):
                 # Compute probability that a given move will end up here
                 combined_probability = probability * model_to[piece](to_square)
 
-                if best_probability < combined_probability
-                best_probability = combined_probability
-                best_move = move
+                if best_probability < combined_probability:
+                    best_probability = combined_probability
+                    best_move = move
 
     return best_move
 
@@ -84,5 +86,25 @@ def game_loop(board, models):
         print(board)
 
 
+def load_models():
+    device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+
+    models_from = {}
+    models_to = {}
+
+    chess_pieces = (chess.PAWN, chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN, chess.KING)
+
+    for i, piece in enumerate(chess_pieces):
+        model_from[piece] = StackedConvolve.to(device)
+        model_from.load_state_dict(torch.load("model_from_{i}.pt"))
+
+        model_to[piece] = StackedConvolve.to(device)
+        model_to.load_state_dict(torch.load("model_to_{i}.pt"))
+
+    return models_from, models_to
+
+
 if __name__ == "__main__":
-    game_loop()
+    models_from, models_to = load_models()
+    game_loop(chess.Board(), models_from, models_to)
+
