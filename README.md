@@ -2,8 +2,9 @@
 A neural network-based chess evaluation library/program
 
 # Demo
+Demo showing the interactive gameplay when the model files (provided in Releases) are in the active directory.
 
-Demo coming soon...
+https://github.com/user-attachments/assets/107c9196-ff90-4ce3-8c7a-46c627232349
 
 # Running
 In the "Releases" section, a set of example models has been provided. You should place them in the same flat directory as `game.py`. Then, to start the interactive gameplay, you can run
